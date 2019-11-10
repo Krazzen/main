@@ -1,6 +1,7 @@
 package Commands;
 
 import Commons.DukeConstants;
+import Commons.Reminder;
 import DukeExceptions.DukeException;
 import Commons.Storage;
 import Commons.UserInteraction;
@@ -8,7 +9,9 @@ import Tasks.Assignment;
 import Tasks.TaskList;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Set;
 
 /**
  * Represents the command to delete a Task object from a TaskList object.
@@ -23,7 +26,7 @@ public class DeleteCommand extends Command {
      * @param task The task to be deleted
      * @param list The name of the TaskList that requires changing
      */
-    public DeleteCommand(String list, Assignment task){
+    public DeleteCommand(String list, Assignment task) {
         this.task = task;
         this.list = list;
     }
@@ -38,7 +41,8 @@ public class DeleteCommand extends Command {
      * @throws DukeException On ArrayList out of bound error
      */
     @Override
-    public String execute(TaskList events, TaskList deadlines, UserInteraction ui, Storage storage) throws DukeException {
+    public String execute(TaskList events, TaskList deadlines, UserInteraction ui, Storage storage)
+            throws DukeException {
         HashMap<String, HashMap<String, ArrayList<Assignment>>> eventMap = events.getMap();
         HashMap<String, HashMap<String, ArrayList<Assignment>>> deadlineMap = deadlines.getMap();
         if (list.equals(DukeConstants.EVENT_LIST)) {
@@ -51,6 +55,20 @@ public class DeleteCommand extends Command {
             deadlines.removeTask(task);
             storage.updateDeadlineList(deadlines);
             listToChange = deadlines;
+            Reminder reminder = storage.getReminderObject();
+            HashMap<Date, Assignment> remindMap = reminder.getRemindMap();
+            reminder.setDeadlines(deadlines);
+            Set<Date> dateKeySet = remindMap.keySet();
+            for (Date date : dateKeySet) {
+                Assignment remindTask = remindMap.get(date);
+                String remindTaskDescription = remindTask.getDescription();
+                String taskDescription = task.getDescription();
+                String remindTaskDate = remindTask.getDateTime();
+                String taskDate = task.getDateTime();
+                if (remindTaskDescription.equals(taskDescription) && remindTaskDate.equals(taskDate)) {
+                    reminder.removeTimerTask(task, date, DukeConstants.NO_FIELD);
+                }
+            }
         }
         return ui.showDelete(task, listToChange.taskListSize());
     }
